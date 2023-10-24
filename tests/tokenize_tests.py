@@ -49,6 +49,9 @@ class ShellTests(ShellTestCase):
                 sh("echo 'foo \"Lorem ipsum dolor sit amet\" < bar \"consectetur (adipiscing; >elit\"' | ./tokenize"), 
                 "foo\nLorem ipsum dolor sit amet\n<\nbar\nconsectetur (adipiscing; >elit")
 
+    def test07(self):
+        """Recognizes a string with quotes next to characters"""
+        self.assertEqual(sh("echo 'ec\"h\"o hello' | ./tokenize"), 'echo\nhello')    
 
 
 if __name__ == '__main__':

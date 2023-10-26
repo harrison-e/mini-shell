@@ -107,6 +107,20 @@ unsigned int vect_current_capacity(vect_t *v) {
   return v->capacity;
 }
 
+/** Construct a new vector and fill it with a subset of data */
+vect_t *vect_subset(vect_t *v, unsigned int start, unsigned int end) {
+  assert(v != NULL);
+  assert(start <= end);
+  assert(end < v->size);
+  assert(v->data != NULL);
+
+  vect_t *subset = vect_new();
+  for (int i = start; i <= end; i++) {
+    vect_add(subset, vect_get_copy(v, i));
+  }
+  return subset;
+}
+
 /** Construct a new array and fill it with the items in the vector */
 char **vect_to_array(vect_t *vect) {
   char **array = malloc(vect->size * sizeof(char *));

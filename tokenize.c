@@ -5,13 +5,9 @@
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-  char buf[256];
-  size_t count = read(0, buf, 255);
-  if (count > 0) {
-    buf[count - 1] = '\0';
-  } else {
-    buf[count] = '\0';
-  }
+  char buf[INPUT_MAX + 1]; // +1 for termination
+  size_t count = read(0, buf, INPUT_MAX);
+  buf[count] = '\0';
 
   vect_t *tokens = tokenize(buf);
   assert(tokens != NULL);

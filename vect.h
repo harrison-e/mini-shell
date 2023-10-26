@@ -44,5 +44,8 @@ unsigned int vect_size(vect_t *v);
 /** The maximum number of items the vector can hold before it has to grow. */
 unsigned int vect_current_capacity(vect_t *v);
 
+/** Construct a new vector and fill it with a subset of data */
+vect_t *vect_subset(vect_t *v, unsigned int start, unsigned int end);
+
 /** Construct a new array and fill it with the items in the vector */
 char **vect_to_array(vect_t *vect);

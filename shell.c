@@ -16,7 +16,6 @@ int main(int argc, char **argv) {
 
   while (status == RUN) {
     printf("shell $ ");
-    fflush(stdout);
     vect_t *tokens = readTokens();
 
     pid_t child = fork();
@@ -25,6 +24,9 @@ int main(int argc, char **argv) {
     if (child == 0) {
       // child process
       char **args = vect_to_array(tokens);
+      if (strcmp(args[0], "") == 0) {
+        exit(0);
+      }
       execvp(args[0], args);
       exit(1);
     } else {
@@ -36,7 +38,12 @@ int main(int argc, char **argv) {
           printf("[%s]: command not found\n", tokens->data[0]);
         }
       } else if (WIFSIGNALED(status)) {
-        printf("  \nBye bye.\n");
+        int signal = WTERMSIG(status);
+        if (signal == 11) {
+          printf("  \nBye bye.\n");
+        } else {
+          printf("[%s]: terminated by signal %d\n", tokens->data[0], signal);
+        }
         exit(0);
       }
     }
@@ -47,12 +54,9 @@ int main(int argc, char **argv) {
 
 vect_t *readTokens() {
   char buf[256];
+  fflush(stdout);
   size_t count = read(0, buf, 256);
-  if (count > 0) {
-    buf[count - 1] = '\0';
-  } else {
-    buf[count] = '\0';
-  }
+  buf[count] = '\0';
 
   vect_t *tokens = tokenize(buf);
   return tokens;

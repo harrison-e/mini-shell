@@ -1,5 +1,5 @@
 {
-    "cSpell.words": ["vect"],
+    "cSpell.words": ["cmdln", "simplcmd", "vect"],
     "files.associations": {
         "vector": "c",
         "iosfwd": "c",

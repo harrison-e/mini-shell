@@ -211,7 +211,7 @@ def filter_shell_output(output):
 
     # Filter out parts of the shell output and remove any empty lines
     filtered_lines = filter(is_empty, map(filter_line, lines))
-
+ 
     return "\n".join(filtered_lines)
 
 

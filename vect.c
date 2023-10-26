@@ -106,3 +106,12 @@ unsigned int vect_current_capacity(vect_t *v) {
 
   return v->capacity;
 }
+
+/** Construct a new array and fill it with the items in the vector */
+char **vect_to_array(vect_t *vect) {
+  char **array = malloc(vect->size * sizeof(char *));
+  for (int i = 0; i < vect->size; i++) {
+    array[i] = vect->data[i];
+  }
+  return array;
+}

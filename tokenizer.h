@@ -1,8 +1,8 @@
 #pragma once
 
-#import "token.h"
-#import "vect.h"
-#import <string.h>
+#include "token.h"
+#include "vect.h"
+#include <string.h>
 
 typedef enum TokenState { WAIT = 0, BUILD = 1, QUOTE = 2 } state_t;
 

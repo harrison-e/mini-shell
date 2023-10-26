@@ -5,6 +5,10 @@
         "iosfwd": "c",
         "token.h": "c",
         "vect.h": "c",
-        "ios": "c"
+        "ios": "c",
+        "unistd.h": "c",
+        "signal.h": "c",
+        "tokenize.h": "c",
+        "tokenizer.h": "c"
     }
 }

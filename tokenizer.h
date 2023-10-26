@@ -4,9 +4,9 @@
 #include "vect.h"
 #include <string.h>
 
-typedef enum TokenState { WAIT = 0, BUILD = 1, QUOTE = 2 } state_t;
-
 #define INPUT_MAX 255
+
+typedef enum TokenState { WAIT = 0, BUILD = 1, QUOTE = 2 } state_t;
 
 vect_t *tokenize(char *input);
 

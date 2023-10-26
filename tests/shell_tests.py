@@ -55,8 +55,8 @@ class ShellTests(ShellTestCase):
  
     def test03(self):
         """ A single echo command works """
-        output = self.run_shell("echo one")
-        self.assertEqual(output, "one")
+        output = self.run_shell("echo a")
+        self.assertEqual(output, "a")
 
     def test04(self):
         """ Two echo commands work """

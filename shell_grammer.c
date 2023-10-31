@@ -80,6 +80,7 @@ void redir_delete(redir_t *r) {
 
 // execute a redir
 void redir_exec(redir_t *r) {
+  assert (r != NULL);
   // TODO
 }
 
@@ -126,7 +127,7 @@ void pipe_delete(pipe_t *p) {
   assert(p != NULL);
 
   for (int i = 0; i < p->redirCount; i++) {
-    redir_delete(p->redirects[i]);
+    redir_delete(&p->redirects[i]);
   }
 
   free(p);
@@ -139,7 +140,7 @@ void pipe_exec(pipe_t *p) {
   if (p->redirCount <= 1) {
     // single command, make no pipes
     assert(p->redirects != NULL);
-    redir_exec(p->redirects[0]);
+    redir_exec(&p->redirects[0]);
   } else {
     // first redir is @0, last redir is @redirCount-1
     // kill stdout for first, kill stdin for last
@@ -162,7 +163,7 @@ void pipe_exec(pipe_t *p) {
     if (write_child == 0) {
       close(read_fd);
       assert(1 == dup2(write_fd, 1)); // replace stdout with w_fd
-      redir_exec(p->redirects[0]);
+      redir_exec(&p->redirects[0]);
       exit(0);
     }
 
@@ -172,7 +173,7 @@ void pipe_exec(pipe_t *p) {
     if (read_child == 0) {
       close(write_fd);
       assert(0 == dup2(read_fd, 0));  // replace stdin with r_fd
-      redir_exec(p->redirects[1]);
+      redir_exec(&p->redirects[1]);
       exit(0);
     }
     
@@ -210,7 +211,7 @@ cmdln_t *cmdln_new(vect_t *tokens) {
   int segmentStart = 0;
   for (int i = 0; i < vect_size(tokens); i++) {
     if (strcmp(";", vect_get(tokens, i)) == 0) {
-      cmdln->pipes[pipeIndex] = pipe_new(tokens, segmentStart, i - 1);
+      cmdln->pipes[pipeIndex] = *pipe_new(tokens, segmentStart, i - 1);
       pipeIndex++;
       segmentStart = i + 1;
     }
@@ -218,7 +219,7 @@ cmdln_t *cmdln_new(vect_t *tokens) {
 
   if (segmentStart < vect_size(tokens)) {
     cmdln->pipes[pipeIndex] =
-        pipe_new(tokens, segmentStart, vect_size(tokens) - 1);
+        *pipe_new(tokens, segmentStart, vect_size(tokens) - 1);
     pipeIndex++;
   }
 
@@ -232,7 +233,7 @@ void cmdln_delete(cmdln_t *c) {
   assert(c != NULL);
 
   for (int i = 0; i < c->pipeCmdCount; i++) {
-    pipe_delete(c->pipes[i]);
+    pipe_delete(&c->pipes[i]);
   }
 
   free(c);
@@ -247,10 +248,10 @@ void cmdln_exec(cmdln_t *c) {
     pid_t child_i = fork();
     assert(-1 != child_i);
     if (child_i == 0) {
-      pipe_exec(c->pipes[i]);
+      pipe_exec(&c->pipes[i]);
       exit(0);
     }
-    wait(child_i);
+    wait(&child_i);
   }
 }
 

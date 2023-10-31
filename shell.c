@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
 vect_t *readTokens() {
   char buf[256];
   fflush(stdout);
-  size_t count = read(0, buf, 256);
+  size_t count = read(0, buf, 255);
   buf[count] = '\0';
 
   vect_t *tokens = tokenize(buf);

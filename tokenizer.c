@@ -70,7 +70,6 @@ int specialTokenHelper(vect_t *tokens, token_t *tokenRef, char special) {
 
 state_t handleWait(vect_t *tokens, token_t *tokenRef, char input) {
   switch (input) {
-  case '\n':
   case ' ':
     return WAIT;
   case '\"':
@@ -81,6 +80,7 @@ state_t handleWait(vect_t *tokens, token_t *tokenRef, char input) {
   case '>':
   case '|':
   case ';':
+  case '\n':
     specialTokenHelper(tokens, tokenRef, input);
     return BUILD;
   default:
@@ -91,7 +91,6 @@ state_t handleWait(vect_t *tokens, token_t *tokenRef, char input) {
 
 state_t handleBuild(vect_t *tokens, token_t *tokenRef, char input) {
   switch (input) {
-  case '\n':
   case ' ':
     addTokenToVect(tokens, tokenRef);
     return WAIT;
@@ -103,6 +102,7 @@ state_t handleBuild(vect_t *tokens, token_t *tokenRef, char input) {
   case '>':
   case '|':
   case ';':
+  case '\n':
     specialTokenHelper(tokens, tokenRef, input);
     return BUILD;
   default:

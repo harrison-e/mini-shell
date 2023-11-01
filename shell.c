@@ -1,4 +1,5 @@
 #include "shell.h"
+#include "shell_grammer.h"
 #include "tokenizer.h"
 #include "vect.h"
 #include <assert.h>
@@ -9,6 +10,32 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+void printStructs(cmdln_t *commandLine) {
+  printf("pipeCmdCount: %d\n", commandLine->pipeCmdCount);
+  for (int i = 0; i < commandLine->pipeCmdCount; i++) {
+    printf("  pipe %d:\n", i);
+    printf("  redirCount: %d\n", i, commandLine->pipes[i]->redirCount);
+    for (int j = 0; j < commandLine->pipes[i]->redirCount; j++) {
+      printf("  redir %d:\n", j);
+      printf("    file name: %s\n",
+             commandLine->pipes[i]->redirects[j]->fileName);
+      printf("    redirectionType: %d\n",
+             commandLine->pipes[i]->redirects[j]->redirectionType);
+      printf("    simple command:\n");
+      printf("      token count: %d\n",
+             commandLine->pipes[i]->redirects[j]->SimpleCommand->tokens->size);
+      for (int k = 0;
+           k < commandLine->pipes[i]->redirects[j]->SimpleCommand->tokens->size;
+           k++) {
+        printf(
+            "      token %d: %s\n", k,
+            vect_get(commandLine->pipes[i]->redirects[j]->SimpleCommand->tokens,
+                     k));
+      }
+    }
+  }
+}
+
 int main(int argc, char **argv) {
 
   printf("Welcome to mini-shell.\n");
@@ -17,38 +44,16 @@ int main(int argc, char **argv) {
   while (status == RUN) {
     printf("shell $ ");
     vect_t *tokens = readTokens();
-
-    pid_t child = fork();
-    assert(child != -1);
-
-    if (child == 0) {
-      // child process
-      char **args = vect_to_array(tokens);
-      if (strcmp(args[0], "") == 0) {
-        exit(0);
-      }
-      execvp(args[0], args);
-      exit(1);
+    if (tokens == NULL ||
+        (tokens->size == 1 && (strcmp(vect_get(tokens, 0), "exit") == 0))) {
+      status = EXIT;
     } else {
-      // parent process
-      int status;
-      waitpid(child, &status, 0);
-      if (WIFEXITED(status)) {
-        if (WEXITSTATUS(status) == 1) {
-          printf("[%s]: command not found\n", tokens->data[0]);
-        }
-      } else if (WIFSIGNALED(status)) {
-        int signal = WTERMSIG(status);
-        if (signal == 11) {
-          printf("  \nBye bye.\n");
-        } else {
-          printf("[%s]: terminated by signal %d\n", tokens->data[0], signal);
-        }
-        exit(0);
-      }
+      cmdln_t *commandLine = cmdln_new(tokens);
+      printStructs(commandLine);
+      cmdln_exec(commandLine);
     }
   }
-  printf("Bye bye.\n");
+  printf("\nBye bye.\n");
   return 0;
 }
 
@@ -56,8 +61,14 @@ vect_t *readTokens() {
   char buf[256];
   fflush(stdout);
   size_t count = read(0, buf, 255);
+  if (count == 0) {
+    return NULL;
+  }
   buf[count] = '\0';
 
   vect_t *tokens = tokenize(buf);
+  // if (strcmp(vect_get(tokens, tokens->size - 1), "\n") == 0) {
+  //   vect_remove_last(tokens);
+  // }
   return tokens;
 }

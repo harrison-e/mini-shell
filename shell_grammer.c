@@ -1,18 +1,27 @@
 #include "shell_grammer.h"
 #include "vect.h"
 #include <assert.h>
-#include <string.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <wait.h>
 
-// TOdo: write downstream deletion fns
-//   - delete_cmdln deletes its pipes, which delete their redirs, which delete
-//   their simple cmds
-//   - in shell,
+void handleChildStatus(int status, const char *cmd) {
+  if (WIFEXITED(status)) {
+    if (WEXITSTATUS(status) == 1) {
+      printf("[%s]: command not found\n", cmd);
+    }
+  } else if (WIFSIGNALED(status)) {
+    int signal = WTERMSIG(status);
+    if (signal == 11) {
+      printf("  \nBye bye.\n");
+    } else {
+      printf("[%s]: terminated by signal %d\n", cmd, signal);
+    }
+  }
+}
 
 //==========================
 //------SIMPLE COMMAND------
@@ -27,7 +36,7 @@ simplcmd_t *simplcmd_new(vect_t *tokens) {
 
 // delete a simplcmd
 void simplcmd_delete(simplcmd_t *s) {
-  assert (s != NULL);
+  assert(s != NULL);
 
   vect_delete(s->tokens);
   free(s);
@@ -36,7 +45,16 @@ void simplcmd_delete(simplcmd_t *s) {
 // execute a simplcmd
 // return exit status
 int simplcmd_exec(simplcmd_t *s) {
-  
+  // child process
+  char **args = vect_to_array(s->tokens);
+  // if the command is empty, exit
+  if (strcmp(args[0], "") == 0) {
+    exit(0);
+  }
+
+  // execute tokens
+  execvp(args[0], args);
+  exit(-1);
 }
 
 //==========================
@@ -51,38 +69,78 @@ redir_t *redir_new(vect_t *tokens, int start, int end) {
   assert(strcmp(vect_get(tokens, end), ">") != 0);
   assert(strcmp(vect_get(tokens, end), "<") != 0);
 
+  int simpleCmdEnd = end;
   for (int i = start + 1; i <= end - 1; i++) {
     int tokenIsGreaterThan = strcmp(vect_get(tokens, i), ">") == 0;
     int tokenIsLessThan = strcmp(vect_get(tokens, i), "<") == 0;
     if (tokenIsGreaterThan || tokenIsLessThan) {
-      redir->SimpleCommand = simplcmd_new(vect_subset(tokens, start, i - 1));
       redir->fileName = malloc(strlen(vect_get(tokens, i + 1)));
       strcpy(redir->fileName, vect_get(tokens, i + 1));
+      simpleCmdEnd = i - 1;
     }
 
     if (tokenIsGreaterThan) {
       redir->redirectionType = OUTPUT;
+      break;
     } else if (tokenIsLessThan) {
       redir->redirectionType = INPUT;
+      break;
     }
   }
+  redir->SimpleCommand = simplcmd_new(vect_subset(tokens, start, simpleCmdEnd));
 
   return redir;
 }
 
 // delete a redir, deleting its filename and simplcmd
 void redir_delete(redir_t *r) {
-  assert (r != NULL);
+  assert(r != NULL);
 
   simplcmd_delete(r->SimpleCommand);
-  
+  free(r->fileName);
 }
 
 // execute a redir
-void redir_exec(redir_t *r) {
-  // TODO
-}
+int redir_exec(redir_t *r) {
+  assert(r != NULL);
 
+  pid_t redir_child;
+  int fd;
+  assert(-1 != (redir_child = fork()));
+  if (redir_child == 0) {
+    // in child
+    switch (r->redirectionType) {
+    case NONE:
+      simplcmd_exec(r->SimpleCommand);
+      break;
+
+    case INPUT: // <
+      close(0);
+      fd = open(r->fileName, O_RDONLY);
+      assert(fd == 0);
+      simplcmd_exec(r->SimpleCommand);
+      break;
+
+    case OUTPUT: // >
+      close(1);
+      fd = open(r->fileName, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      assert(fd == 1);
+      simplcmd_exec(r->SimpleCommand);
+      break;
+
+    default:
+      break;
+    }
+    exit(0);
+  } else {
+    // in parent
+    int status;
+    waitpid(redir_child, &status, 0);
+    const char *cmd = vect_get(r->SimpleCommand->tokens, 0);
+    handleChildStatus(status, cmd);
+    return status;
+  }
+}
 
 //==========================
 //-------PIPE COMMAND-------
@@ -104,15 +162,14 @@ pipe_t *pipe_new(vect_t *tokens, int start, int end) {
   int segmentStart = start;
   for (int i = start; i <= end; i++) {
     if (strcmp("|", vect_get(tokens, i)) == 0) {
-      pipe->redirects[redirIndex] = *redir_new(tokens, segmentStart, i - 1);
+      pipe->redirects[redirIndex] = redir_new(tokens, segmentStart, i - 1);
       redirIndex++;
       segmentStart = i + 1;
     }
   }
 
   if (segmentStart < vect_size(tokens)) {
-    pipe->redirects[redirIndex] =
-        *redir_new(tokens, segmentStart, vect_size(tokens) - 1);
+    pipe->redirects[redirIndex] = redir_new(tokens, segmentStart, end);
     redirIndex++;
   }
 
@@ -133,28 +190,32 @@ void pipe_delete(pipe_t *p) {
 }
 
 // execute a pipe, set up pipes and exec redirs
-void pipe_exec(pipe_t *p) {
+
+// EXAMPLE OF MULTIPLE PIPES:
+// https://gist.github.com/aspatic/93e197083b65678a132b9ecee53cfe86
+
+int pipe_exec(pipe_t *p) {
   assert(p != NULL);
 
   if (p->redirCount <= 1) {
     // single command, make no pipes
     assert(p->redirects != NULL);
-    redir_exec(p->redirects[0]);
+    return redir_exec(p->redirects[0]);
   } else {
     // first redir is @0, last redir is @redirCount-1
     // kill stdout for first, kill stdin for last
     // kill stdout and stdin for in between
     // pipe between consecutive redirs
-    
+
     // # fds = 2*(redirCount-1)
     int fd_count = 2 * (p->redirCount - 1);
     int pipe_fds[fd_count];
-    
+
     // ex with redirCount = 2
     int pipe_fd[2];
-    assert(pipe(pipe_fd) != -1);  // create a pipe
+    assert(pipe(pipe_fd) != -1); // create a pipe
     int write_fd = pipe_fd[1];
-    int read_fd  = pipe_fd[0];
+    int read_fd = pipe_fd[0];
 
     pid_t write_child = fork();
     assert(write_child != -1);
@@ -171,22 +232,21 @@ void pipe_exec(pipe_t *p) {
 
     if (read_child == 0) {
       close(write_fd);
-      assert(0 == dup2(read_fd, 0));  // replace stdin with r_fd
+      assert(0 == dup2(read_fd, 0)); // replace stdin with r_fd
       redir_exec(p->redirects[1]);
       exit(0);
     }
-    
+
     close(read_fd);
     close(write_fd);
-    wait(NULL); 
     wait(NULL);
-    // 
-
+    wait(NULL);
+    //
 
     // for loop
+    return 0;
   }
 }
-
 
 //==========================
 //-------COMMAND LINE-------
@@ -198,9 +258,10 @@ cmdln_t *cmdln_new(vect_t *tokens) {
 
   cmdln_t *cmdln = malloc(sizeof(cmdln_t));
 
-  cmdln->pipeCmdCount = 1;
+  cmdln->pipeCmdCount = 0;
   for (int i = 0; i < vect_size(tokens); i++) {
-    if (strcmp(";", vect_get(tokens, i)) == 0) {
+    if ((strcmp(";", vect_get(tokens, i)) == 0) ||
+        (strcmp("\n", vect_get(tokens, i)) == 0)) {
       cmdln->pipeCmdCount++;
     }
   }
@@ -209,7 +270,8 @@ cmdln_t *cmdln_new(vect_t *tokens) {
   int pipeIndex = 0;
   int segmentStart = 0;
   for (int i = 0; i < vect_size(tokens); i++) {
-    if (strcmp(";", vect_get(tokens, i)) == 0) {
+    if ((strcmp(";", vect_get(tokens, i)) == 0) ||
+        (strcmp("\n", vect_get(tokens, i)) == 0)) {
       cmdln->pipes[pipeIndex] = pipe_new(tokens, segmentStart, i - 1);
       pipeIndex++;
       segmentStart = i + 1;
@@ -221,8 +283,6 @@ cmdln_t *cmdln_new(vect_t *tokens) {
         pipe_new(tokens, segmentStart, vect_size(tokens) - 1);
     pipeIndex++;
   }
-
-  assert(pipeIndex == cmdln->pipeCmdCount);
 
   return cmdln;
 }
@@ -239,22 +299,26 @@ void cmdln_delete(cmdln_t *c) {
 }
 
 // execute a cmdln, executing all of its pipes
-// return ???
-void cmdln_exec(cmdln_t *c) {
+// return exit status
+int cmdln_exec(cmdln_t *c) {
   assert(c != NULL);
 
   for (int i = 0; i < c->pipeCmdCount; i++) {
     pid_t child_i = fork();
     assert(-1 != child_i);
     if (child_i == 0) {
-      pipe_exec(c->pipes[i]);
+      int pipe_status;
+      if ((pipe_status = pipe_exec(c->pipes[i]))) {
+        return pipe_status;
+        exit(1);
+      }
       exit(0);
     }
-    wait(child_i);
+    int status;
+    waitpid(child_i, &status, 0);
   }
+  return 0;
 }
-
-
 
 /**
 

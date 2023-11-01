@@ -258,7 +258,7 @@ cmdln_t *cmdln_new(vect_t *tokens) {
 
   cmdln_t *cmdln = malloc(sizeof(cmdln_t));
 
-  cmdln->pipeCmdCount = 0;
+  cmdln->pipeCmdCount = 1;
   for (int i = 0; i < vect_size(tokens); i++) {
     if ((strcmp(";", vect_get(tokens, i)) == 0) ||
         (strcmp("\n", vect_get(tokens, i)) == 0)) {

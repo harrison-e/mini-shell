@@ -14,7 +14,7 @@ void printStructs(cmdln_t *commandLine) {
   printf("pipeCmdCount: %d\n", commandLine->pipeCmdCount);
   for (int i = 0; i < commandLine->pipeCmdCount; i++) {
     printf("  pipe %d:\n", i);
-    printf("  redirCount: %d\n", i, commandLine->pipes[i]->redirCount);
+    printf("  redirCount: %d\n", commandLine->pipes[i]->redirCount);
     for (int j = 0; j < commandLine->pipes[i]->redirCount; j++) {
       printf("  redir %d:\n", j);
       printf("    file name: %s\n",
@@ -36,6 +36,14 @@ void printStructs(cmdln_t *commandLine) {
   }
 }
 
+int shouldExit(vect_t *tokens) {
+  if (tokens == NULL) {
+    printf("\n");
+    return 1;
+  }
+  return tokens->size == 1 && (strcmp(vect_get(tokens, 0), "exit") == 0);
+}
+
 int main(int argc, char **argv) {
 
   printf("Welcome to mini-shell.\n");
@@ -44,16 +52,15 @@ int main(int argc, char **argv) {
   while (status == RUN) {
     printf("shell $ ");
     vect_t *tokens = readTokens();
-    if (tokens == NULL ||
-        (tokens->size == 1 && (strcmp(vect_get(tokens, 0), "exit") == 0))) {
+
+    if (shouldExit(tokens)) {
       status = EXIT;
     } else {
       cmdln_t *commandLine = cmdln_new(tokens);
-      printStructs(commandLine);
       cmdln_exec(commandLine);
     }
   }
-  printf("\nBye bye.\n");
+  printf("Bye bye.\n");
   return 0;
 }
 
@@ -67,8 +74,8 @@ vect_t *readTokens() {
   buf[count] = '\0';
 
   vect_t *tokens = tokenize(buf);
-  // if (strcmp(vect_get(tokens, tokens->size - 1), "\n") == 0) {
-  //   vect_remove_last(tokens);
-  // }
+  if (strcmp(vect_get(tokens, tokens->size - 1), "\n") == 0) {
+    vect_remove_last(tokens);
+  }
   return tokens;
 }

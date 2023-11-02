@@ -57,6 +57,7 @@ int main(int argc, char **argv) {
       status = EXIT;
     } else {
       cmdln_t *commandLine = cmdln_new(tokens);
+      printStructs(commandLine);
       cmdln_exec(commandLine);
     }
   }
@@ -65,9 +66,9 @@ int main(int argc, char **argv) {
 }
 
 vect_t *readTokens() {
-  char buf[256];
+  char buf[READ_MAX + 1];
   fflush(stdout);
-  size_t count = read(0, buf, 255);
+  size_t count = read(0, buf, READ_MAX);
   if (count == 0) {
     return NULL;
   }

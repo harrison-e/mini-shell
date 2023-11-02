@@ -304,6 +304,9 @@ int cmdln_exec(cmdln_t *c) {
   assert(c != NULL);
 
   for (int i = 0; i < c->pipeCmdCount; i++) {
+    if (c->pipes[i] == NULL) {
+      continue;
+    }
     pid_t child_i = fork();
     assert(-1 != child_i);
     if (child_i == 0) {

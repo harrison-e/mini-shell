@@ -123,9 +123,10 @@ vect_t *vect_subset(vect_t *v, unsigned int start, unsigned int end) {
 
 /** Construct a new array and fill it with the items in the vector */
 char **vect_to_array(vect_t *vect) {
-  char **array = malloc(vect->size * sizeof(char *));
+  char **array = malloc((vect->size + 1) * sizeof(char *));
   for (int i = 0; i < vect->size; i++) {
     array[i] = vect->data[i];
   }
+  array[vect_size(vect)] = NULL;
   return array;
 }

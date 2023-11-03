@@ -2,6 +2,7 @@
 #include "vect.h"
 #include <assert.h>
 #include <fcntl.h>
+#include <wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,11 +16,7 @@ void handleChildStatus(int status, const char *cmd) {
     }
   } else if (WIFSIGNALED(status)) {
     int signal = WTERMSIG(status);
-    if (signal == 11) {
-      printf("  \nBye bye.\n");
-    } else {
-      printf("[%s]: terminated by signal %d\n", cmd, signal);
-    }
+    printf("[%s]: terminated by signal %d\n", cmd, signal);
   }
 }
 
@@ -54,7 +51,7 @@ int simplcmd_exec(simplcmd_t *s) {
 
   // execute tokens
   execvp(args[0], args);
-  exit(-1);
+  exit(0);
 }
 
 //==========================
@@ -129,9 +126,9 @@ int redir_exec(redir_t *r) {
       break;
 
     default:
+      exit(-1);
       break;
     }
-    exit(0);
   } else {
     // in parent
     int status;
@@ -304,6 +301,9 @@ int cmdln_exec(cmdln_t *c) {
   assert(c != NULL);
 
   for (int i = 0; i < c->pipeCmdCount; i++) {
+    if (c->pipes[i] == NULL) {
+      continue;
+    }
     pid_t child_i = fork();
     assert(-1 != child_i);
     if (child_i == 0) {
@@ -313,9 +313,11 @@ int cmdln_exec(cmdln_t *c) {
         exit(1);
       }
       exit(0);
+    } else {
+      int status;
+      waitpid(child_i, &status, 0);
+      handleChildStatus(status, NULL);
     }
-    int status;
-    waitpid(child_i, &status, 0);
   }
   return 0;
 }

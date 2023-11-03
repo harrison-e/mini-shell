@@ -25,7 +25,8 @@ vect_t *tokenize(char *input) {
   }
 
   addTokenToVect(tokens, currentToken);
-
+  token_delete(currentToken);
+  
   return tokens;
 }
 

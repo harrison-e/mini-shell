@@ -20,9 +20,20 @@
 /** Construct a new empty vector. */
 vect_t *vect_new() {
   vect_t *v = malloc(sizeof(vect_t));
-  v->capacity = 2;
-  v->data = calloc(v->capacity, sizeof(char *));
+  if (!v)
+    return NULL;
+
   v->size = 0;
+  v->capacity = VECT_INITIAL_CAPACITY;
+
+  v->data = calloc(v->capacity, sizeof(char *));
+  if (!v->data) {
+    free(v);
+    return NULL;
+  }
+
+  for (int i = 0; i < v->capacity; i++)
+    v->data[i] = NULL;
 
   return v;
 }
@@ -31,9 +42,9 @@ vect_t *vect_new() {
 void vect_delete(vect_t *v) {
   assert(v != NULL);
 
-  for (int i = 0; i < v->size; i++) {
+  for (int i = 0; i < v->size; i++) 
     free(v->data[i]);
-  }
+
   free(v->data);
   free(v);
 }
@@ -60,7 +71,14 @@ char *vect_get_copy(vect_t *v, unsigned int idx) {
 void vect_set(vect_t *v, unsigned int idx, const char *elt) {
   assert(v != NULL);
   assert(idx < v->size);
-  free(v->data[idx]);
+  assert(elt != NULL);
+  
+  if (!v->data[idx]) {
+    v->size++;
+  } else {
+    free(v->data[idx]);
+  }
+
   v->data[idx] = malloc(sizeof(char) * (strlen(elt) + 1));
   strcpy(v->data[idx], elt);
 }
@@ -68,17 +86,22 @@ void vect_set(vect_t *v, unsigned int idx, const char *elt) {
 /** Add an element to the back of the vector. */
 void vect_add(vect_t *v, const char *elt) {
   assert(v != NULL);
+  assert(elt != NULL);
 
   if (v->size == v->capacity) {
     v->capacity *= VECT_GROWTH_FACTOR;
-    char **temp = realloc(v->data, v->capacity * sizeof(char *));
-    if (temp != NULL) {
-      v->data = temp;
+    char **temp = malloc(v->capacity * sizeof(char *));
+    for (int e = 0; e < v->size; e++) {
+      temp[e] = vect_get_copy(v, e);
+      free(v->data[e]);
     }
+    free(v->data);
+    v->data = temp;
   }
-  v->data[v->size] = malloc(sizeof(char) * (strlen(elt) + 1));
+
+  v->data[v->size] = malloc(strlen(elt) + 1);
   strcpy(v->data[v->size], elt);
-  v->size += 1;
+  v->size++;
 }
 
 /** Remove the last element from the vector. */
@@ -116,7 +139,9 @@ vect_t *vect_subset(vect_t *v, unsigned int start, unsigned int end) {
 
   vect_t *subset = vect_new();
   for (int i = start; i <= end; i++) {
-    vect_add(subset, vect_get_copy(v, i));
+    char* copy_i = vect_get_copy(v, i);
+    vect_add(subset, copy_i);
+    free(copy_i);
   }
   return subset;
 }
@@ -130,3 +155,4 @@ char **vect_to_array(vect_t *vect) {
   array[vect_size(vect)] = NULL;
   return array;
 }
+

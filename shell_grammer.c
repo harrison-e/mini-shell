@@ -7,7 +7,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <wait.h>
 
 void handleChildStatus(int status, const char *cmd) {
   if (WIFEXITED(status)) {

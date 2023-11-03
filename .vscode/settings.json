@@ -12,6 +12,7 @@
         "tokenizer.h": "c",
         "shell_grammer.h": "c",
         "stdio.h": "c",
-        "assert.h": "c"
+        "assert.h": "c",
+        "stdbool.h": "c"
     }
 }

@@ -54,18 +54,19 @@ bool isBuiltInCommand(const char *command) {
   return false;
 }
 
-void handleCdCommand(vect_t *tokens) {
+int handleCdCommand(vect_t *tokens) {
   if (tokens->size == 1) {
     chdir(getenv("HOME"));
   } else {
     chdir(vect_get(tokens, 1));
   }
+  return 0;
 }
 
 int handlePrevCommand(vect_t *previousCommand) {
   if (previousCommand == NULL) {
     printf("No previous command.\n");
-    return 1;
+    return 0;
   }
   if (isBuiltInCommand(vect_get(previousCommand, 0))) {
     return executeBuiltInCommand(previousCommand, previousCommand);
@@ -106,7 +107,7 @@ void handleHelpCommand() {
 int executeBuiltInCommand(vect_t *tokens, vect_t *previousCommand) {
   const char *command = vect_get(tokens, 0);
   if (strcmp(command, "cd") == 0) {
-    handleCdCommand(tokens);
+    return handleCdCommand(tokens);
   } else if (strcmp(command, "source") == 0) {
     // open file using open
     // read file using read
@@ -116,13 +117,14 @@ int executeBuiltInCommand(vect_t *tokens, vect_t *previousCommand) {
     // if it is a built in command, run it
     // else run it as a command line
     // close file using close
-
+    return 0;
   } else if (strcmp(command, "prev") == 0) {
     return handlePrevCommand(previousCommand);
   } else if (strcmp(command, "help") == 0) {
     handleHelpCommand();
+    return 0;
   } else {
-    return 1;
+    return 0;
   }
 }
 

@@ -11,7 +11,7 @@ const char *const BUILT_IN_COMMANDS[] = {"cd", "source", "prev", "help", NULL};
 
 #define BUILT_IN_COMMANDS_COUNT (sizeof(BUILT_IN_COMMANDS) / sizeof(char *) - 1)
 
-void handleCdCommand(vect_t *tokens);
+int handleCdCommand(vect_t *tokens);
 
 int handlePrevCommand(vect_t *previousCommand);
 

@@ -187,10 +187,6 @@ void pipe_delete(pipe_t *p) {
 }
 
 // execute a pipe, set up pipes and exec redirs
-
-// EXAMPLE OF MULTIPLE PIPES:
-// https://gist.github.com/aspatic/93e197083b65678a132b9ecee53cfe86
-
 int pipe_exec(pipe_t *p) {
   assert(p != NULL);
 
@@ -200,47 +196,35 @@ int pipe_exec(pipe_t *p) {
     return redir_exec(p->redirects[0]);
   } else {
     // first redir is @0, last redir is @redirCount-1
-    // kill stdout for first, kill stdin for last
-    // kill stdout and stdin for in between
-    // pipe between consecutive redirs
+    int fd[2];
+    pid_t p_child;
+    int backup_fd = 0;
+    // for loop: from 0 to n-1
+    for (int i = 0; i < p->redirCount; i++) {
+      pipe(fd);   // create pipe with array
 
-    // # fds = 2*(redirCount-1)
-    int fd_count = 2 * (p->redirCount - 1);
-    int pipe_fds[fd_count];
-
-    // ex with redirCount = 2
-    int pipe_fd[2];
-    assert(pipe(pipe_fd) != -1); // create a pipe
-    int write_fd = pipe_fd[1];
-    int read_fd = pipe_fd[0];
-
-    pid_t write_child = fork();
-    assert(write_child != -1);
-
-    if (write_child == 0) {
-      close(read_fd);
-      assert(1 == dup2(write_fd, 1)); // replace stdout with w_fd
-      redir_exec(p->redirects[0]);
-      exit(0);
+      // fork and check
+      if ((p_child = fork()) == -1) {
+        perror("pipe fork");
+        exit(1);
+      }
+      else if (p_child == 0) {
+        // in child
+        dup2(backup_fd, 0); // backup replaces stdin 
+        if (i < (p->redirCount - 1)) {
+          // if this is an intermediate pipe, fd[1] replaces stdout
+          dup2(fd[1], 1);   
+        }
+        close(fd[0]);       // close write end of pipe
+        redir_exec(p->redirects[i]);
+        exit(1);
+      } else {
+        wait(NULL);         // collect child
+        close(fd[1]);       // close read end of pipe
+        backup_fd = fd[0];  // backup is set to previous write
+      }
     }
 
-    pid_t read_child = fork();
-    assert(read_child != -1);
-
-    if (read_child == 0) {
-      close(write_fd);
-      assert(0 == dup2(read_fd, 0)); // replace stdin with r_fd
-      redir_exec(p->redirects[1]);
-      exit(0);
-    }
-
-    close(read_fd);
-    close(write_fd);
-    wait(NULL);
-    wait(NULL);
-    //
-
-    // for loop
     return 0;
   }
 }

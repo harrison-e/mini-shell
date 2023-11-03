@@ -66,9 +66,9 @@ int main(int argc, char **argv) {
 }
 
 vect_t *readTokens() {
-  char buf[READ_MAX + 1];
+  char buf[1024];
   fflush(stdout);
-  size_t count = read(0, buf, READ_MAX);
+  size_t count = read(0, buf, 1023);
   if (count == 0) {
     return NULL;
   }

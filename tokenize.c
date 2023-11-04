@@ -17,5 +17,7 @@ int main(int argc, char **argv) {
     printf("%s\n", vect_get(tokens, i));
   }
 
+  vect_delete(tokens);
+
   return 0;
 }

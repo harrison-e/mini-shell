@@ -174,18 +174,27 @@ int main(int argc, char **argv) {
     } else if (isBuiltInCommand(vect_get(tokens, 0))) {
       executeBuiltInCommand(tokens, previousCommand);
       if (strcmp(vect_get(tokens, 0), "prev") != 0) {
-        previousCommand = tokens;
+        if (previousCommand != NULL)
+          vect_delete(previousCommand);
+        previousCommand = vect_subset(tokens, 0, tokens->size - 1);
       }
     } else {
       cmdln_t *commandLine = cmdln_new(tokens);
       int processStatus = cmdln_exec(commandLine);
+      cmdln_delete(commandLine);
       if (processStatus == 0) {
-        previousCommand = tokens;
+        if (previousCommand != NULL)
+          vect_delete(previousCommand);
+        previousCommand = vect_subset(tokens, 0, tokens->size - 1);
       } else {
         // TODO: handle error
       }
     }
+    if (tokens != NULL)
+      vect_delete(tokens);
   }
+  if (previousCommand != NULL)
+    vect_delete(previousCommand);
   printf("Bye bye.\n");
   return 0;
 }
@@ -196,12 +205,12 @@ vect_t *readTokens() {
   size_t count = read(0, buf, READ_MAX - 1);
   if (count == 0) {
     return NULL;
-  }
-  buf[count] = '\0';
 
-  vect_t *tokens = tokenize(buf);
-  if (strcmp(vect_get(tokens, tokens->size - 1), "\n") == 0) {
-    vect_remove_last(tokens);
+    buf[count] = '\0';
+
+    vect_t *tokens = tokenize(buf);
+    if (strcmp(vect_get(tokens, tokens->size - 1), "\n") == 0)
+      vect_remove_last(tokens);
+
+    return tokens;
   }
-  return tokens;
-}

@@ -32,10 +32,11 @@ simplcmd_t *simplcmd_new(vect_t *tokens) {
 
 // delete a simplcmd
 void simplcmd_delete(simplcmd_t *s) {
-  assert(s != NULL);
-
-  vect_delete(s->tokens);
-  free(s);
+  if (s != NULL) {
+      if (s->tokens != NULL)
+        vect_delete(s->tokens);
+      free(s);
+  }
 }
 
 // execute a simplcmd
@@ -50,6 +51,8 @@ int simplcmd_exec(simplcmd_t *s) {
 
   // execute tokens
   execvp(args[0], args);
+  // free and exit
+  free(args);
   exit(0);
 }
 
@@ -66,6 +69,7 @@ redir_t *redir_new(vect_t *tokens, int start, int end) {
   assert(strcmp(vect_get(tokens, end), "<") != 0);
 
   int simpleCmdEnd = end;
+  redir->redirectionType = NONE;
   for (int i = start + 1; i <= end - 1; i++) {
     int tokenIsGreaterThan = strcmp(vect_get(tokens, i), ">") == 0;
     int tokenIsLessThan = strcmp(vect_get(tokens, i), "<") == 0;
@@ -90,10 +94,13 @@ redir_t *redir_new(vect_t *tokens, int start, int end) {
 
 // delete a redir, deleting its filename and simplcmd
 void redir_delete(redir_t *r) {
-  assert(r != NULL);
+  if (r != NULL) {
+      simplcmd_delete(r->SimpleCommand);
+      if (r->redirectionType != NONE)
+          free(r->fileName);
 
-  simplcmd_delete(r->SimpleCommand);
-  free(r->fileName);
+      free(r);
+  }
 }
 
 // execute a redir
@@ -152,7 +159,7 @@ pipe_t *pipe_new(vect_t *tokens, int start, int end) {
       pipe->redirCount++;
     }
   }
-  pipe->redirects = malloc(sizeof(redir_t) * (pipe->redirCount));
+  pipe->redirects = malloc(sizeof(redir_t *) * (pipe->redirCount));
 
   int redirIndex = 0;
   int segmentStart = start;
@@ -176,13 +183,14 @@ pipe_t *pipe_new(vect_t *tokens, int start, int end) {
 
 // delete a pipe_t, deleting its redirs
 void pipe_delete(pipe_t *p) {
-  assert(p != NULL);
+  if (p != NULL) {
+      for (int i = 0; i < p->redirCount; i++) {
+          redir_delete(p->redirects[i]);
+      }
 
-  for (int i = 0; i < p->redirCount; i++) {
-    redir_delete(p->redirects[i]);
+      free(p->redirects);
+      free(p);
   }
-
-  free(p);
 }
 
 // execute a pipe, set up pipes and exec redirs
@@ -245,7 +253,7 @@ cmdln_t *cmdln_new(vect_t *tokens) {
       cmdln->pipeCmdCount++;
     }
   }
-  cmdln->pipes = malloc(sizeof(pipe_t) * (cmdln->pipeCmdCount));
+  cmdln->pipes = malloc(sizeof(pipe_t *) * (cmdln->pipeCmdCount));
 
   int pipeIndex = 0;
   int segmentStart = 0;
@@ -275,6 +283,7 @@ void cmdln_delete(cmdln_t *c) {
     pipe_delete(c->pipes[i]);
   }
 
+  free(c->pipes);
   free(c);
 }
 
@@ -293,7 +302,6 @@ int cmdln_exec(cmdln_t *c) {
       int pipe_status;
       if ((pipe_status = pipe_exec(c->pipes[i]))) {
         return pipe_status;
-        exit(1);
       }
       exit(0);
     } else {
@@ -304,34 +312,3 @@ int cmdln_exec(cmdln_t *c) {
   }
   return 0;
 }
-
-/**
-
-1. Sequencing : command1; command2
-  a) Split the token list on semicolon.
-  b) Fork child A & execute command1 (recursively).
-  c) In parent: wait for child A to finish.
-  d) Fork child B & execute command2 (recursively).
-  e) In parent: wait for child B to finish.
-  f) Note, that you may have success processing a sequence of commands using
-an ordinary loop too.
-
-2. Pipe: command1 | command2
-  a) Fork child A.
-  b) In child A: create a pipe.
-  c) In child A: fork child B.
-  d) In child B: hook pipe to stdout, close other side.
-  e) In child B: execute command1.
-  f) In child A: hook pipe to stdin, close other side.
-  g) In child A: execute command2.
-  h) In child A: wait for child B.
-  i) In parent: wait for child A.
-  j) Redirection: command <OP> file
-
-3. Fork a child.
-  a) In child: replace the appropriate file descriptor to accomplish the
-redirect.
-  b) In child: execute command (recursively).
-  c) In parent: wait for child to finish.
-
- */

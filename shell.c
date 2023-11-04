@@ -3,6 +3,7 @@
 #include "tokenizer.h"
 #include "vect.h"
 #include <assert.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -69,7 +70,10 @@ int handlePrevCommand(vect_t *previousCommand) {
     return 0;
   }
   if (isBuiltInCommand(vect_get(previousCommand, 0))) {
-    return executeBuiltInCommand(previousCommand, previousCommand);
+    if (strcmp(vect_get(previousCommand, 0), "prev") != 0) {
+      return executeBuiltInCommand(previousCommand, previousCommand);
+    }
+    return 1;
   } else {
     cmdln_t *commandLine = cmdln_new(previousCommand);
     int processStatus = cmdln_exec(commandLine);
@@ -78,6 +82,42 @@ int handlePrevCommand(vect_t *previousCommand) {
     }
     return processStatus;
   }
+}
+
+int handleSourceCommand(vect_t *tokens) {
+  FILE *file = fopen(vect_get(tokens, 1), "r");
+  if (file == NULL) {
+    printf("Failed to open file\n");
+    return 1;
+  }
+
+  vect_t *prevCommand = NULL;
+  char line[READ_MAX];
+  while (fgets(line, sizeof(line), file)) {
+    vect_t *tokens = tokenize(line);
+    if (strcmp(vect_get(tokens, vect_size(tokens) - 1), "\n") == 0) {
+      vect_remove_last(tokens);
+    }
+
+    if (isBuiltInCommand(vect_get(tokens, 0))) {
+      executeBuiltInCommand(tokens, prevCommand);
+      if (strcmp(vect_get(tokens, 0), "prev") != 0) {
+        free(prevCommand);
+        prevCommand = tokens;
+      }
+    } else {
+      cmdln_t *commandLine = cmdln_new(tokens);
+      int processStatus = cmdln_exec(commandLine);
+      if (processStatus == 0) {
+        free(prevCommand);
+        prevCommand = tokens;
+      } else {
+        // TODO: handle error
+      }
+    }
+  }
+  fclose(file);
+  return 0;
 }
 
 void handleHelpCommand() {
@@ -109,15 +149,7 @@ int executeBuiltInCommand(vect_t *tokens, vect_t *previousCommand) {
   if (strcmp(command, "cd") == 0) {
     return handleCdCommand(tokens);
   } else if (strcmp(command, "source") == 0) {
-    // open file using open
-    // read file using read
-    // run a for loop on each line
-    // tokenize line using readTokens
-    // check if it is a built in command
-    // if it is a built in command, run it
-    // else run it as a command line
-    // close file using close
-    return 0;
+    return handleSourceCommand(tokens);
   } else if (strcmp(command, "prev") == 0) {
     return handlePrevCommand(previousCommand);
   } else if (strcmp(command, "help") == 0) {
@@ -159,9 +191,9 @@ int main(int argc, char **argv) {
 }
 
 vect_t *readTokens() {
-  char buf[1024];
+  char buf[READ_MAX];
   fflush(stdout);
-  size_t count = read(0, buf, 1023);
+  size_t count = read(0, buf, READ_MAX - 1);
   if (count == 0) {
     return NULL;
   }

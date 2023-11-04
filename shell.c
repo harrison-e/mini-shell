@@ -65,6 +65,8 @@ int handleCdCommand(vect_t *tokens) {
 }
 
 int handlePrevCommand(vect_t *previousCommand) {
+  fflush(stdin);
+  printf("running previous command: %s", vect_get(previousCommand, 0));
   if (previousCommand == NULL) {
     printf("No previous command.\n");
     return 0;
@@ -93,6 +95,7 @@ int handleSourceCommand(vect_t *tokens) {
 
   vect_t *prevCommand = NULL;
   char line[READ_MAX];
+  fflush(stdout);
   while (fgets(line, sizeof(line), file)) {
     vect_t *tokens = tokenize(line);
     if (strcmp(vect_get(tokens, vect_size(tokens) - 1), "\n") == 0) {
@@ -115,6 +118,7 @@ int handleSourceCommand(vect_t *tokens) {
         // TODO: handle error
       }
     }
+    fflush(stdout);
   }
   fclose(file);
   return 0;
@@ -205,12 +209,12 @@ vect_t *readTokens() {
   size_t count = read(0, buf, READ_MAX - 1);
   if (count == 0) {
     return NULL;
-
-    buf[count] = '\0';
-
-    vect_t *tokens = tokenize(buf);
-    if (strcmp(vect_get(tokens, tokens->size - 1), "\n") == 0)
-      vect_remove_last(tokens);
-
-    return tokens;
   }
+  buf[count] = '\0';
+
+  vect_t *tokens = tokenize(buf);
+  if (strcmp(vect_get(tokens, tokens->size - 1), "\n") == 0)
+    vect_remove_last(tokens);
+
+  return tokens;
+}
